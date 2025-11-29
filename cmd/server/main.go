@@ -51,49 +51,79 @@ func main() {
 		}
 		log.Printf("Created database: %s", cfg.Database.Name)
 	}
-
+	// Repositories
 	userRepo := repository.NewUserRepository(client, cfg.Database.Name)
+	deviceRepo := repository.NewDeviceRepository(client, cfg.Database.Name)
+	keyStoreRepo := repository.NewKeyStoreRepository(client, cfg.Database.Name)
+	noteRepo := repository.NewNoteRepository(client, cfg.Database.Name)
 
-	authService := service.NewAuthService(
-		userRepo,
-		cfg.JWT.Secret,
-		cfg.JWT.Expiration,
-		cfg.JWT.RefreshTokenExpiration,
-	)
+	// Services
+	authService := service.NewAuthService(userRepo, cfg.JWT.Secret, cfg.JWT.Expiration, cfg.JWT.RefreshTokenExpiration)
 	userService := service.NewUserService(userRepo)
+	deviceService := service.NewDeviceService(deviceRepo)
+	securityService := service.NewSecurityService(keyStoreRepo)
+	noteService := service.NewNoteService(noteRepo)
 
+	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
+	deviceHandler := handler.NewDeviceHandler(deviceService)
+	securityHandler := handler.NewSecurityHandler(securityService)
+	noteHandler := handler.NewNoteHandler(noteService)
 
-	router := mux.NewRouter()
+	// Router
+	r := mux.NewRouter()
 
-	router.Use(middleware.LoggerMiddleware())
-	router.Use(middleware.CORSMiddleware(
+	// Middlewares
+	r.Use(middleware.LoggerMiddleware())
+	r.Use(middleware.CORSMiddleware(
 		cfg.CORS.AllowedOrigins,
 		cfg.CORS.AllowedMethods,
 		cfg.CORS.AllowedHeaders,
 	))
 
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-	router.HandleFunc("/", rootHandler).Methods("GET")
+	// API Router
+	api := r.PathPrefix("/api/v1").Subrouter()
 
-	apiRouter := router.PathPrefix("/api/v1").Subrouter()
+	// Public Routes
+	api.HandleFunc("/auth/register", authHandler.Register).Methods("POST", "OPTIONS")
+	api.HandleFunc("/auth/login", authHandler.Login).Methods("POST", "OPTIONS")
+	api.HandleFunc("/auth/refresh", authHandler.Refresh).Methods("POST", "OPTIONS")
+	api.HandleFunc("/auth/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 
-	apiRouter.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
-	apiRouter.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
-	apiRouter.HandleFunc("/auth/refresh", authHandler.Refresh).Methods("POST")
-
-	protected := apiRouter.NewRoute().Subrouter()
+	// Protected Routes
+	protected := api.PathPrefix("").Subrouter()
 	protected.Use(middleware.AuthMiddleware(cfg.JWT.Secret))
-	protected.HandleFunc("/auth/logout", authHandler.Logout).Methods("POST")
-	protected.HandleFunc("/users/me", userHandler.GetMe).Methods("GET")
-	protected.HandleFunc("/users/me", userHandler.UpdateMe).Methods("PUT")
+
+	// User Routes
+	protected.HandleFunc("/users/me", userHandler.GetMe).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/users/me", userHandler.UpdateMe).Methods("PUT", "OPTIONS")
+
+	// Device Routes
+	protected.HandleFunc("/devices", deviceHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/devices/register", deviceHandler.Register).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/devices/{id}", deviceHandler.Revoke).Methods("DELETE", "OPTIONS")
+
+	// Security Routes (E2EE)
+	protected.HandleFunc("/security/keys/setup", securityHandler.UploadKey).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/security/keys/sync", securityHandler.GetKey).Methods("GET", "OPTIONS")
+
+	// Note Routes
+	protected.HandleFunc("/notes", noteHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/notes", noteHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/notes/{id}", noteHandler.Get).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/notes/{id}", noteHandler.Update).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/notes/{id}", noteHandler.Delete).Methods("DELETE", "OPTIONS")
+
+	// Health and Root handlers (public)
+	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/", rootHandler).Methods("GET")
 
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      r,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

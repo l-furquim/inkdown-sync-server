@@ -69,14 +69,29 @@ GET    /api/v1/users/me         # Obter dados do usuário autenticado
 PUT    /api/v1/users/me         # Atualizar perfil
 ```
 
+### Dispositivos
+
+```
+POST   /api/v1/devices/register # Registra um novo dispositivo
+GET    /api/v1/devices          # Lista dispositivos ativos
+DELETE /api/v1/devices/{id}     # Revoga acesso de um dispositivo
+```
+
+### Segurança (E2EE)
+
+```
+POST   /api/v1/security/keys/setup # Upload da chave mestra criptografada
+GET    /api/v1/security/keys/sync  # Download da chave mestra criptografada
+```
+
 ### Notas
 
 ```
-GET    /api/v1/notes            # Listar todas as notas do usuário
-GET    /api/v1/notes/:id        # Buscar nota por ID
-POST   /api/v1/notes            # Criar nova nota
-PUT    /api/v1/notes/:id        # Atualizar nota existente
-DELETE /api/v1/notes/:id        # Deletar nota (soft delete)
+POST   /api/v1/notes            # Criar nova nota ou diretório
+GET    /api/v1/notes            # Listar todas as notas
+GET    /api/v1/notes/{id}       # Obter detalhes de uma nota
+PUT    /api/v1/notes/{id}       # Atualizar uma nota
+DELETE /api/v1/notes/{id}       # Deletar uma nota (soft delete)
 ```
 
 ### WebSocket
