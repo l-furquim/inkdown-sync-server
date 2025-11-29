@@ -26,6 +26,8 @@ github.com/gopherjs/gopherjs v1.19.0-beta2 h1:7UXqw60dgkFBUJ7ISFfPUkR37KfWPRStvF
 github.com/gopherjs/gopherjs v1.19.0-beta2/go.mod h1:2WavbyDw5YmfMgwzeuZQ+rK6sxrzCy5vJ/vLriB+Mpw=
 github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
 github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
+github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
+github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/icza/dyno v0.0.0-20230330125955-09f820a8d9c0 h1:nHoRIX8iXob3Y2kdt9KsjyIb7iApSvb3vgsd93xb5Ow=
 github.com/icza/dyno v0.0.0-20230330125955-09f820a8d9c0/go.mod h1:c1tRKs5Tx7E2+uHGSyyncziFjvGpgv4H2HrqXeUQ/Uk=
 github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=

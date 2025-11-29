@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"inkdown-sync-server/internal/domain"
+	"inkdown-sync-server/internal/middleware"
 	"inkdown-sync-server/internal/service"
 	"inkdown-sync-server/pkg/response"
 
@@ -35,7 +36,7 @@ func (h *SecurityHandler) UploadKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	if err := h.service.UploadKey(userID, &req); err != nil {
 		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to upload key"})
@@ -46,7 +47,7 @@ func (h *SecurityHandler) UploadKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SecurityHandler) GetKey(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	key, err := h.service.GetKey(userID)
 	if err != nil {

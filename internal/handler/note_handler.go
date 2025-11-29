@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"inkdown-sync-server/internal/domain"
+	"inkdown-sync-server/internal/middleware"
 	"inkdown-sync-server/internal/service"
 	"inkdown-sync-server/pkg/response"
 
@@ -36,7 +37,7 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	note, err := h.service.Create(userID, &req)
 	if err != nil {
@@ -48,7 +49,7 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NoteHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	notes, err := h.service.List(userID)
 	if err != nil {
@@ -67,7 +68,7 @@ func (h *NoteHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	note, err := h.service.GetByID(userID, noteID)
 	if err != nil {
@@ -97,7 +98,7 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	note, err := h.service.Update(userID, noteID, &req)
 	if err != nil {
@@ -120,7 +121,7 @@ func (h *NoteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	if err := h.service.Delete(userID, noteID); err != nil {
 		if err.Error() == "unauthorized: note does not belong to user" {

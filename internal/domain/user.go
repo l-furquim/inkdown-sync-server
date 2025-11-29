@@ -6,7 +6,7 @@ type User struct {
 	ID        string    `json:"id"`
 	Username  string    `json:"username" validate:"required,min=3,max=30,alphanum"`
 	Email     string    `json:"email" validate:"required,email"`
-	Password  string    `json:"-"`
+	Password  string    `json:"password,omitempty"` // Save to DB but omit from responses when empty
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

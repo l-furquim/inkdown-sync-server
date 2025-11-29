@@ -11,12 +11,23 @@ import (
 )
 
 type NoteService struct {
-	repo repository.NoteRepository
+	repo            repository.NoteRepository
+	versionRepo     repository.NoteVersionRepository
+	conflictService *ConflictService
+	syncService     *SyncService
 }
 
-func NewNoteService(repo repository.NoteRepository) *NoteService {
+func NewNoteService(
+	repo repository.NoteRepository,
+	versionRepo repository.NoteVersionRepository,
+	conflictService *ConflictService,
+	syncService *SyncService,
+) *NoteService {
 	return &NoteService{
-		repo: repo,
+		repo:            repo,
+		versionRepo:     versionRepo,
+		conflictService: conflictService,
+		syncService:     syncService,
 	}
 }
 
@@ -37,13 +48,15 @@ func (s *NoteService) Create(userID string, req *domain.CreateNoteRequest) (*dom
 		UpdatedAt:        now,
 		IsDeleted:        false,
 		Version:          1,
+		ContentHash:      req.ContentHash,
+		LastEditDevice:   req.DeviceID,
 	}
 
 	if err := s.repo.Create(note); err != nil {
 		return nil, err
 	}
 
-	return &domain.NoteResponse{
+	response := &domain.NoteResponse{
 		ID:               note.ID,
 		ParentID:         note.ParentID,
 		Type:             note.Type,
@@ -55,7 +68,15 @@ func (s *NoteService) Create(userID string, req *domain.CreateNoteRequest) (*dom
 		UpdatedAt:        note.UpdatedAt,
 		IsDeleted:        note.IsDeleted,
 		Version:          note.Version,
-	}, nil
+		ContentHash:      note.ContentHash,
+		LastEditDevice:   note.LastEditDevice,
+	}
+
+	if s.syncService != nil {
+		s.syncService.BroadcastNoteUpdate(userID, req.DeviceID, response)
+	}
+
+	return response, nil
 }
 
 func (s *NoteService) List(userID string) ([]*domain.NoteResponse, error) {
@@ -78,6 +99,8 @@ func (s *NoteService) List(userID string) ([]*domain.NoteResponse, error) {
 			UpdatedAt:        n.UpdatedAt,
 			IsDeleted:        n.IsDeleted,
 			Version:          n.Version,
+			ContentHash:      n.ContentHash,
+			LastEditDevice:   n.LastEditDevice,
 		})
 	}
 
@@ -106,6 +129,8 @@ func (s *NoteService) GetByID(userID, noteID string) (*domain.NoteResponse, erro
 		UpdatedAt:        note.UpdatedAt,
 		IsDeleted:        note.IsDeleted,
 		Version:          note.Version,
+		ContentHash:      note.ContentHash,
+		LastEditDevice:   note.LastEditDevice,
 	}, nil
 }
 
@@ -119,7 +144,18 @@ func (s *NoteService) Update(userID, noteID string, req *domain.UpdateNoteReques
 		return nil, errors.New("unauthorized: note does not belong to user")
 	}
 
-	// Apply updates
+	if req.ExpectedVersion != nil && *req.ExpectedVersion != note.Version {
+		conflict, err := s.conflictService.DetectConflict(noteID, userID, req.DeviceID, *req.ExpectedVersion, req)
+		if err != nil {
+			return nil, err
+		}
+		return nil, &ConflictError{Conflict: conflict}
+	}
+
+	if s.versionRepo != nil {
+		s.versionRepo.SaveVersion(note)
+	}
+
 	if req.EncryptedTitle != nil {
 		note.EncryptedTitle = *req.EncryptedTitle
 	}
@@ -138,15 +174,19 @@ func (s *NoteService) Update(userID, noteID string, req *domain.UpdateNoteReques
 	if req.IsDeleted != nil {
 		note.IsDeleted = *req.IsDeleted
 	}
+	if req.ContentHash != nil {
+		note.ContentHash = *req.ContentHash
+	}
 
 	note.UpdatedAt = time.Now()
-	note.Version++ // Increment version
+	note.Version++
+	note.LastEditDevice = req.DeviceID
 
 	if err := s.repo.Update(note); err != nil {
 		return nil, err
 	}
 
-	return &domain.NoteResponse{
+	response := &domain.NoteResponse{
 		ID:               note.ID,
 		ParentID:         note.ParentID,
 		Type:             note.Type,
@@ -158,7 +198,15 @@ func (s *NoteService) Update(userID, noteID string, req *domain.UpdateNoteReques
 		UpdatedAt:        note.UpdatedAt,
 		IsDeleted:        note.IsDeleted,
 		Version:          note.Version,
-	}, nil
+		ContentHash:      note.ContentHash,
+		LastEditDevice:   note.LastEditDevice,
+	}
+
+	if s.syncService != nil {
+		s.syncService.BroadcastNoteUpdate(userID, req.DeviceID, response)
+	}
+
+	return response, nil
 }
 
 func (s *NoteService) Delete(userID, noteID string) error {

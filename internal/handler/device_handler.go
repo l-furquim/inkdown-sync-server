@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"inkdown-sync-server/internal/domain"
+	"inkdown-sync-server/internal/middleware"
 	"inkdown-sync-server/internal/service"
 	"inkdown-sync-server/pkg/response"
 
@@ -36,7 +37,7 @@ func (h *DeviceHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	device, err := h.service.Register(userID, &req)
 	if err != nil {
@@ -48,7 +49,7 @@ func (h *DeviceHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *DeviceHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	devices, err := h.service.List(userID)
 	if err != nil {
@@ -67,7 +68,7 @@ func (h *DeviceHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value("user_id").(string)
+	userID := middleware.GetUserID(r)
 
 	if err := h.service.Revoke(userID, deviceID); err != nil {
 		if err.Error() == "unauthorized: device does not belong to user" {

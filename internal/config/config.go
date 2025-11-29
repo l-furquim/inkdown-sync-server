@@ -43,6 +43,10 @@ type WebSocketConfig struct {
 	ReadBufferSize  int
 	WriteBufferSize int
 	MaxMessageSize  int64
+	WriteWait       time.Duration
+	PongWait        time.Duration
+	PingPeriod      time.Duration
+	MaxConnPerUser  int
 }
 
 type RateLimitConfig struct {
@@ -95,6 +99,10 @@ func Load() (*Config, error) {
 			ReadBufferSize:  getEnvAsInt("WS_READ_BUFFER_SIZE", 4096),
 			WriteBufferSize: getEnvAsInt("WS_WRITE_BUFFER_SIZE", 4096),
 			MaxMessageSize:  int64(getEnvAsInt("WS_MAX_MESSAGE_SIZE", 10485760)),
+			WriteWait:       10 * time.Second,
+			PongWait:        60 * time.Second,
+			PingPeriod:      54 * time.Second,
+			MaxConnPerUser:  getEnvAsInt("WS_MAX_CONN_PER_USER", 5),
 		},
 		RateLimit: RateLimitConfig{
 			RequestsPerMinute: getEnvAsInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 60),

@@ -56,9 +56,22 @@ func (m *mockNoteRepo) Delete(id string) error {
 	return errors.New("note not found")
 }
 
+// Mock NoteVersionRepository
+type mockVersionRepo struct{}
+
+func (m *mockVersionRepo) SaveVersion(note *domain.Note) error { return nil }
+func (m *mockVersionRepo) GetVersions(noteID string, limit int) ([]*domain.NoteVersion, error) {
+	return nil, nil
+}
+func (m *mockVersionRepo) GetVersion(noteID string, version int64) (*domain.NoteVersion, error) {
+	return nil, nil
+}
+func (m *mockVersionRepo) DeleteOldVersions(noteID string, keepLast int) error { return nil }
+
 func TestNoteService_Create(t *testing.T) {
 	repo := newMockNoteRepo()
-	service := NewNoteService(repo)
+	versionRepo := &mockVersionRepo{}
+	service := NewNoteService(repo, versionRepo, nil, nil)
 
 	req := &domain.CreateNoteRequest{
 		Type:             domain.NoteTypeFile,
@@ -66,6 +79,7 @@ func TestNoteService_Create(t *testing.T) {
 		EncryptedContent: "enc-content",
 		EncryptionAlgo:   "AES-256-GCM",
 		Nonce:            "nonce",
+		DeviceID:         "device1",
 	}
 
 	note, err := service.Create("user1", req)
@@ -83,11 +97,12 @@ func TestNoteService_Create(t *testing.T) {
 
 func TestNoteService_List(t *testing.T) {
 	repo := newMockNoteRepo()
-	service := NewNoteService(repo)
+	versionRepo := &mockVersionRepo{}
+	service := NewNoteService(repo, versionRepo, nil, nil)
 
-	service.Create("user1", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "n1", EncryptionAlgo: "algo", Nonce: "n"})
-	service.Create("user1", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "n2", EncryptionAlgo: "algo", Nonce: "n"})
-	service.Create("user2", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "n3", EncryptionAlgo: "algo", Nonce: "n"})
+	service.Create("user1", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "n1", EncryptionAlgo: "algo", Nonce: "n", DeviceID: "d1"})
+	service.Create("user1", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "n2", EncryptionAlgo: "algo", Nonce: "n", DeviceID: "d1"})
+	service.Create("user2", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "n3", EncryptionAlgo: "algo", Nonce: "n", DeviceID: "d2"})
 
 	list, err := service.List("user1")
 	if err != nil {
@@ -101,13 +116,15 @@ func TestNoteService_List(t *testing.T) {
 
 func TestNoteService_Update(t *testing.T) {
 	repo := newMockNoteRepo()
-	service := NewNoteService(repo)
+	versionRepo := &mockVersionRepo{}
+	service := NewNoteService(repo, versionRepo, nil, nil)
 
-	note, _ := service.Create("user1", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "old", EncryptionAlgo: "algo", Nonce: "n"})
+	note, _ := service.Create("user1", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "old", EncryptionAlgo: "algo", Nonce: "n", DeviceID: "d1"})
 
 	newTitle := "new-enc-title"
 	req := &domain.UpdateNoteRequest{
 		EncryptedTitle: &newTitle,
+		DeviceID:       "d1",
 	}
 
 	updated, err := service.Update("user1", note.ID, req)
@@ -131,9 +148,10 @@ func TestNoteService_Update(t *testing.T) {
 
 func TestNoteService_Delete(t *testing.T) {
 	repo := newMockNoteRepo()
-	service := NewNoteService(repo)
+	versionRepo := &mockVersionRepo{}
+	service := NewNoteService(repo, versionRepo, nil, nil)
 
-	note, _ := service.Create("user1", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "del", EncryptionAlgo: "algo", Nonce: "n"})
+	note, _ := service.Create("user1", &domain.CreateNoteRequest{Type: domain.NoteTypeFile, EncryptedTitle: "del", EncryptionAlgo: "algo", Nonce: "n", DeviceID: "d1"})
 
 	err := service.Delete("user1", note.ID)
 	if err != nil {

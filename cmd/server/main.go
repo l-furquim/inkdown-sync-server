@@ -15,6 +15,7 @@ import (
 	"inkdown-sync-server/internal/middleware"
 	"inkdown-sync-server/internal/repository"
 	"inkdown-sync-server/internal/service"
+	"inkdown-sync-server/internal/websocket"
 
 	_ "github.com/go-kivik/kivik/v4/couchdb"
 
@@ -57,12 +58,33 @@ func main() {
 	keyStoreRepo := repository.NewKeyStoreRepository(client, cfg.Database.Name)
 	noteRepo := repository.NewNoteRepository(client, cfg.Database.Name)
 
+	baseURL := fmt.Sprintf("%s/%s", couchURL, cfg.Database.Name)
+	versionRepo := repository.NewNoteVersionRepository(baseURL)
+	syncMetadataRepo := repository.NewSyncMetadataRepository(baseURL)
+	conflictRepo := repository.NewConflictRepository(baseURL)
+
+	// WebSocket Manager
+	wsManager := websocket.NewManager(
+		cfg.WebSocket.MaxConnPerUser,
+		cfg.WebSocket.WriteWait,
+		cfg.WebSocket.PongWait,
+		cfg.WebSocket.PingPeriod,
+	)
+	go wsManager.Run()
+
 	// Services
 	authService := service.NewAuthService(userRepo, cfg.JWT.Secret, cfg.JWT.Expiration, cfg.JWT.RefreshTokenExpiration)
 	userService := service.NewUserService(userRepo)
 	deviceService := service.NewDeviceService(deviceRepo)
 	securityService := service.NewSecurityService(keyStoreRepo)
-	noteService := service.NewNoteService(noteRepo)
+
+	syncService := service.NewSyncService(noteRepo, versionRepo, syncMetadataRepo, wsManager)
+	conflictService := service.NewConflictService(conflictRepo, versionRepo, noteRepo)
+	noteService := service.NewNoteService(noteRepo, versionRepo, conflictService, syncService)
+
+	// WebSocket Message Handler
+	wsMessageHandler := handler.NewWebSocketMessageHandler(syncService)
+	wsManager.SetMessageHandler(wsMessageHandler)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -70,6 +92,8 @@ func main() {
 	deviceHandler := handler.NewDeviceHandler(deviceService)
 	securityHandler := handler.NewSecurityHandler(securityService)
 	noteHandler := handler.NewNoteHandler(noteService)
+	wsHandler := handler.NewWebSocketHandler(wsManager, cfg.JWT.Secret)
+	syncHandler := handler.NewSyncHandler(syncService, conflictService)
 
 	// Router
 	r := mux.NewRouter()
@@ -114,6 +138,15 @@ func main() {
 	protected.HandleFunc("/notes/{id}", noteHandler.Get).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/notes/{id}", noteHandler.Update).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/notes/{id}", noteHandler.Delete).Methods("DELETE", "OPTIONS")
+
+	// Sync Routes
+	protected.HandleFunc("/sync/request", syncHandler.ProcessSync).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/sync/changes", syncHandler.GetChanges).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/sync/conflicts", syncHandler.ListConflicts).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/sync/resolve/{id}", syncHandler.ResolveConflict).Methods("POST", "OPTIONS")
+
+	// WebSocket Route
+	r.HandleFunc("/ws", wsHandler.HandleConnection)
 
 	// Health and Root handlers (public)
 	r.HandleFunc("/health", healthHandler).Methods("GET")
