@@ -56,6 +56,16 @@ func (m *mockNoteRepo) Delete(id string) error {
 	return errors.New("note not found")
 }
 
+func (m *mockNoteRepo) ListByWorkspace(workspaceID string) ([]*domain.Note, error) {
+	var notes []*domain.Note
+	for _, n := range m.notes {
+		if n.WorkspaceID == workspaceID && !n.IsDeleted {
+			notes = append(notes, n)
+		}
+	}
+	return notes, nil
+}
+
 // Mock NoteVersionRepository
 type mockVersionRepo struct{}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -57,6 +58,8 @@ func main() {
 	deviceRepo := repository.NewDeviceRepository(client, cfg.Database.Name)
 	keyStoreRepo := repository.NewKeyStoreRepository(client, cfg.Database.Name)
 	noteRepo := repository.NewNoteRepository(client, cfg.Database.Name)
+	workspaceRepo := repository.NewWorkspaceRepository(client, cfg.Database.Name)
+	cliTokenRepo := repository.NewCLITokenRepository(client, cfg.Database.Name)
 
 	baseURL := fmt.Sprintf("%s/%s", couchURL, cfg.Database.Name)
 	versionRepo := repository.NewNoteVersionRepository(baseURL)
@@ -77,10 +80,12 @@ func main() {
 	userService := service.NewUserService(userRepo)
 	deviceService := service.NewDeviceService(deviceRepo)
 	securityService := service.NewSecurityService(keyStoreRepo)
+	cliTokenService := service.NewCLITokenService(cliTokenRepo, userRepo)
 
 	syncService := service.NewSyncService(noteRepo, versionRepo, syncMetadataRepo, wsManager)
 	conflictService := service.NewConflictService(conflictRepo, versionRepo, noteRepo)
 	noteService := service.NewNoteService(noteRepo, versionRepo, conflictService, syncService)
+	workspaceService := service.NewWorkspaceService(workspaceRepo, noteRepo)
 
 	// WebSocket Message Handler
 	wsMessageHandler := handler.NewWebSocketMessageHandler(syncService)
@@ -94,6 +99,8 @@ func main() {
 	noteHandler := handler.NewNoteHandler(noteService)
 	wsHandler := handler.NewWebSocketHandler(wsManager, cfg.JWT.Secret)
 	syncHandler := handler.NewSyncHandler(syncService, conflictService)
+	workspaceHandler := handler.NewWorkspaceHandler(workspaceService)
+	cliTokenHandler := handler.NewCLITokenHandler(cliTokenService)
 
 	// Router
 	r := mux.NewRouter()
@@ -115,13 +122,24 @@ func main() {
 	api.HandleFunc("/auth/refresh", authHandler.Refresh).Methods("POST", "OPTIONS")
 	api.HandleFunc("/auth/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 
-	// Protected Routes
+	// CLI Public Routes (login to get a token)
+	api.HandleFunc("/cli/login", cliTokenHandler.Login).Methods("POST", "OPTIONS")
+	api.HandleFunc("/cli/validate", cliTokenHandler.Validate).Methods("POST", "OPTIONS")
+
+	// Protected Routes (JWT auth)
 	protected := api.PathPrefix("").Subrouter()
 	protected.Use(middleware.AuthMiddleware(cfg.JWT.Secret))
 
 	// User Routes
 	protected.HandleFunc("/users/me", userHandler.GetMe).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/users/me", userHandler.UpdateMe).Methods("PUT", "OPTIONS")
+
+	// CLI Token Management (requires JWT auth - manage tokens from web UI)
+	protected.HandleFunc("/cli/tokens", cliTokenHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/cli/tokens", cliTokenHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/cli/tokens/{id}", cliTokenHandler.Get).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/cli/tokens/{id}/revoke", cliTokenHandler.Revoke).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/cli/tokens/{id}", cliTokenHandler.Delete).Methods("DELETE", "OPTIONS")
 
 	// Device Routes
 	protected.HandleFunc("/devices", deviceHandler.List).Methods("GET", "OPTIONS")
@@ -139,11 +157,42 @@ func main() {
 	protected.HandleFunc("/notes/{id}", noteHandler.Update).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/notes/{id}", noteHandler.Delete).Methods("DELETE", "OPTIONS")
 
+	// Workspace Routes
+	protected.HandleFunc("/workspaces", workspaceHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/workspaces", workspaceHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/workspaces/{id}", workspaceHandler.Get).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/workspaces/{id}", workspaceHandler.Update).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/workspaces/{id}", workspaceHandler.Delete).Methods("DELETE", "OPTIONS")
+
 	// Sync Routes
 	protected.HandleFunc("/sync/request", syncHandler.ProcessSync).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/sync/changes", syncHandler.GetChanges).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/sync/manifest", syncHandler.GetManifest).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/sync/batch-diff", syncHandler.BatchDiff).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/sync/conflicts", syncHandler.ListConflicts).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/sync/resolve/{id}", syncHandler.ResolveConflict).Methods("POST", "OPTIONS")
+
+	// CLI Protected Routes (CLI token auth - for theme/plugin publishing)
+	// These routes use CLI tokens (ink_xxxxx) instead of JWT
+	cliProtected := api.PathPrefix("/community").Subrouter()
+	cliProtected.Use(middleware.CLIAuthMiddleware(cliTokenService))
+	// Theme routes will be added here when the theme system is implemented
+	// Example:
+	// cliProtected.HandleFunc("/themes", themeHandler.Publish).Methods("POST", "OPTIONS")
+	// cliProtected.HandleFunc("/themes/{id}", themeHandler.Update).Methods("PUT", "OPTIONS")
+	// cliProtected.HandleFunc("/themes/{id}", themeHandler.Delete).Methods("DELETE", "OPTIONS")
+	// For now, we add a placeholder route to verify CLI auth works
+	cliProtected.HandleFunc("/me", func(w http.ResponseWriter, r *http.Request) {
+		userID := r.Context().Value("user_id").(string)
+		scopes := r.Context().Value("cli_scopes").([]string)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "CLI authentication successful",
+			"user_id": userID,
+			"scopes":  scopes,
+		})
+	}).Methods("GET", "OPTIONS")
 
 	// WebSocket Route
 	r.HandleFunc("/ws", wsHandler.HandleConnection)

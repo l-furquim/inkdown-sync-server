@@ -130,3 +130,46 @@ func (h *SyncHandler) ResolveConflict(w http.ResponseWriter, r *http.Request) {
 		"note":    note,
 	})
 }
+
+// GetManifest returns a compact list of all notes for efficient sync comparison
+// Optional query param: ?workspace_id=xxx to filter by workspace
+func (h *SyncHandler) GetManifest(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	if userID == "" {
+		response.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	workspaceID := r.URL.Query().Get("workspace_id")
+
+	manifest, err := h.syncService.GetManifest(userID, workspaceID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.JSON(w, http.StatusOK, manifest)
+}
+
+// BatchDiff compares client state with server and returns needed sync actions
+func (h *SyncHandler) BatchDiff(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	if userID == "" {
+		response.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req domain.BatchDiffRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	diff, err := h.syncService.ProcessBatchDiff(userID, &req)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.JSON(w, http.StatusOK, diff)
+}

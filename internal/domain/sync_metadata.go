@@ -29,3 +29,50 @@ type NoteChange struct {
 	Version   int64         `json:"version"`
 	Note      *NoteResponse `json:"note,omitempty"`
 }
+
+// ManifestEntry represents a compact note entry for efficient sync comparison
+type ManifestEntry struct {
+	ID          string    `json:"id"`
+	ContentHash string    `json:"content_hash"`
+	Version     int64     `json:"version"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	IsDeleted   bool      `json:"is_deleted"`
+}
+
+// ManifestResponse returns all notes in compact form for client comparison
+type ManifestResponse struct {
+	Notes    []ManifestEntry `json:"notes"`
+	SyncTime time.Time       `json:"sync_time"`
+}
+
+// BatchDiffRequest contains local note state for server comparison
+type BatchDiffRequest struct {
+	WorkspaceID string          `json:"workspace_id" validate:"required"`
+	DeviceID    string          `json:"device_id" validate:"required"`
+	LocalNotes  []LocalNoteInfo `json:"local_notes"`
+}
+
+// LocalNoteInfo represents client-side note state
+type LocalNoteInfo struct {
+	ID          string `json:"id"`
+	ContentHash string `json:"content_hash"`
+	Version     int64  `json:"version"`
+}
+
+// BatchDiffResponse contains sync actions needed
+type BatchDiffResponse struct {
+	ToDownload []NoteResponse `json:"to_download"` // Server has newer version
+	ToUpload   []string       `json:"to_upload"`   // Client has newer version (note IDs)
+	ToDelete   []string       `json:"to_delete"`   // Deleted on server (note IDs)
+	Conflicts  []ConflictInfo `json:"conflicts"`   // Need manual resolution
+	SyncTime   time.Time      `json:"sync_time"`
+}
+
+// ConflictInfo describes a sync conflict
+type ConflictInfo struct {
+	NoteID        string `json:"note_id"`
+	LocalHash     string `json:"local_hash"`
+	ServerHash    string `json:"server_hash"`
+	LocalVersion  int64  `json:"local_version"`
+	ServerVersion int64  `json:"server_version"`
+}

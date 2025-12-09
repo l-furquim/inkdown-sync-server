@@ -106,6 +106,14 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 			response.JSON(w, http.StatusForbidden, map[string]string{"error": err.Error()})
 			return
 		}
+		// Check if it's a conflict error
+		if conflictErr, ok := err.(*service.ConflictError); ok {
+			response.JSON(w, http.StatusConflict, map[string]interface{}{
+				"error":    "version_conflict",
+				"conflict": conflictErr.Conflict,
+			})
+			return
+		}
 		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update note"})
 		return
 	}

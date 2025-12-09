@@ -50,6 +50,7 @@ func (s *NoteService) Create(userID string, req *domain.CreateNoteRequest) (*dom
 		Version:          1,
 		ContentHash:      req.ContentHash,
 		LastEditDevice:   req.DeviceID,
+		WorkspaceID:      req.WorkspaceID,
 	}
 
 	if err := s.repo.Create(note); err != nil {
@@ -70,6 +71,7 @@ func (s *NoteService) Create(userID string, req *domain.CreateNoteRequest) (*dom
 		Version:          note.Version,
 		ContentHash:      note.ContentHash,
 		LastEditDevice:   note.LastEditDevice,
+		WorkspaceID:      note.WorkspaceID,
 	}
 
 	if s.syncService != nil {
@@ -101,6 +103,7 @@ func (s *NoteService) List(userID string) ([]*domain.NoteResponse, error) {
 			Version:          n.Version,
 			ContentHash:      n.ContentHash,
 			LastEditDevice:   n.LastEditDevice,
+			WorkspaceID:      n.WorkspaceID,
 		})
 	}
 
@@ -131,6 +134,7 @@ func (s *NoteService) GetByID(userID, noteID string) (*domain.NoteResponse, erro
 		Version:          note.Version,
 		ContentHash:      note.ContentHash,
 		LastEditDevice:   note.LastEditDevice,
+		WorkspaceID:      note.WorkspaceID,
 	}, nil
 }
 
@@ -200,6 +204,7 @@ func (s *NoteService) Update(userID, noteID string, req *domain.UpdateNoteReques
 		Version:          note.Version,
 		ContentHash:      note.ContentHash,
 		LastEditDevice:   note.LastEditDevice,
+		WorkspaceID:      note.WorkspaceID,
 	}
 
 	if s.syncService != nil {

@@ -340,3 +340,75 @@ Marca uma nota como deletada (soft delete).
   "message": "Note deleted successfully"
 }
 ```
+
+---
+
+## Sincronização Eficiente
+
+### Get Manifest
+Retorna uma lista compacta de todas as notas para comparação eficiente.
+Este endpoint é otimizado para sync inicial e verificação de estado.
+
+**Endpoint:** `GET /api/v1/sync/manifest`
+
+**Response (200 OK):**
+```json
+{
+  "notes": [
+    {
+      "id": "note:uuid...",
+      "content_hash": "sha256_base64...",
+      "version": 5,
+      "updated_at": "2023-11-28T12:05:00Z",
+      "is_deleted": false
+    }
+  ],
+  "sync_time": "2023-11-28T12:10:00Z"
+}
+```
+
+### Batch Diff
+Compara o estado local do cliente com o servidor e retorna ações necessárias.
+Permite sync eficiente em uma única requisição.
+
+**Endpoint:** `POST /api/v1/sync/batch-diff`
+
+**Body:**
+```json
+{
+  "device_id": "device:uuid...",
+  "local_notes": [
+    {
+      "id": "note:uuid...",
+      "content_hash": "sha256_base64...",
+      "version": 3
+    }
+  ]
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "to_download": [
+    {
+      "id": "note:uuid...",
+      "encrypted_title": "base64...",
+      "encrypted_content": "base64...",
+      "version": 5,
+      // ... full note data
+    }
+  ],
+  "to_upload": ["note:uuid1...", "note:uuid2..."],
+  "to_delete": ["note:uuid3..."],
+  "conflicts": [
+    {
+      "note_id": "note:uuid4...",
+      "local_hash": "abc123...",
+      "server_hash": "def456...",
+      "local_version": 3,
+      "server_version": 3
+    }
+  ],
+  "sync_time": "2023-11-28T12:10:00Z"
+}

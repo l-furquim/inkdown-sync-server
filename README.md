@@ -1,16 +1,6 @@
 # Inkdown Sync Server
 
-Servidor de autenticação, cadastro e sincronização de notas markdown para o [Inkdown](https://github.com/inkdown), construído com Go seguindo boas práticas de desenvolvimento.
-
-## 🛠️ Stack Tecnológica
-
-- Go lang
-- Gorilla Mux
-- Gorilla WebSocket
-- JWT (golang-jwt/jwt/v5)
-- CouchDB 3.3
-- go-playground/validator
-- bcrypt
+Api de autenticação, cadastro e sincronização de notas markdown para o [Inkdown](https://github.com/inkdown), construído com Go lang
 
 ## Instalação e Configuração
 
@@ -152,38 +142,3 @@ JWT_EXPIRATION=15m
 # WebSocket
 WS_MAX_MESSAGE_SIZE=10485760  # 10MB
 ```
-
-## Estrutura do Projeto
-
-```
-inkdown-sync-server/
-├── cmd/server/           # Entry point da aplicação
-├── internal/
-│   ├── config/           # Configurações
-│   ├── domain/           # Entidades de domínio
-│   ├── repository/       # Camada de dados
-│   ├── service/          # Lógica de negócio
-│   ├── handler/          # HTTP/WebSocket handlers
-│   ├── middleware/       # Middlewares (auth, cors, logging)
-│   └── websocket/        # Infraestrutura WebSocket
-├── pkg/                  # Pacotes reutilizáveis
-│   ├── jwt/              # Utilitários JWT
-│   ├── hash/             # Hash de senhas
-│   ├── response/         # Respostas padronizadas
-│   └── validator/        # Validadores customizados
-├── Dockerfile
-├── docker-compose.yml
-└── .env.example
-```
-
-## Licença
-
-MIT
-
-## Contribuindo
-
-Contribuições são bem-vindas! Por favor, abra uma issue ou PR.
-
----
-
-**Desenvolvido para o Inkdown** - Um editor de notas markdown multiplataforma moderno e eficiente.

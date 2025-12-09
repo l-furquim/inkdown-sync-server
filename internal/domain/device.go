@@ -2,20 +2,18 @@ package domain
 
 import "time"
 
-// Device represents a user device (desktop, mobile, tablet)
 type Device struct {
 	ID         string    `json:"id"`
 	UserID     string    `json:"user_id"`
-	Name       string    `json:"name"`        // Ex: "MacBook Pro", "iPhone 13"
-	Type       string    `json:"type"`        // "desktop", "mobile", "tablet"
-	OS         string    `json:"os"`          // "darwin", "windows", "ios", "android"
-	AppVersion string    `json:"app_version"` // Para controle de compatibilidade
+	Name       string    `json:"name"`
+	Type       string    `json:"type"`
+	OS         string    `json:"os"`
+	AppVersion string    `json:"app_version"`
 	LastActive time.Time `json:"last_active"`
 	CreatedAt  time.Time `json:"created_at"`
 	IsRevoked  bool      `json:"is_revoked"`
 }
 
-// RegisterDeviceRequest represents the payload to register a new device
 type RegisterDeviceRequest struct {
 	Name       string `json:"name" validate:"required"`
 	Type       string `json:"type" validate:"required"`
@@ -23,7 +21,6 @@ type RegisterDeviceRequest struct {
 	AppVersion string `json:"app_version" validate:"required"`
 }
 
-// DeviceResponse represents the device data returned to the client
 type DeviceResponse struct {
 	ID         string    `json:"id"`
 	Name       string    `json:"name"`

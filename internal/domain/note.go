@@ -13,10 +13,11 @@ const (
 // Note represents a markdown note or directory in the system.
 // Supports End-to-End Encryption (E2EE) by storing encrypted blobs for sensitive data.
 type Note struct {
-	ID       string   `json:"id"`
-	UserID   string   `json:"user_id"`
-	ParentID *string  `json:"parent_id"`
-	Type     NoteType `json:"type"`
+	ID          string   `json:"id"`
+	UserID      string   `json:"user_id"`
+	WorkspaceID string   `json:"workspace_id"`
+	ParentID    *string  `json:"parent_id"`
+	Type        NoteType `json:"type"`
 
 	EncryptedTitle   string `json:"encrypted_title"`
 	EncryptedContent string `json:"encrypted_content,omitempty"`
@@ -33,6 +34,7 @@ type Note struct {
 
 // CreateNoteRequest represents the payload to create a new note/directory
 type CreateNoteRequest struct {
+	WorkspaceID      string   `json:"workspace_id" validate:"required"`
 	ParentID         *string  `json:"parent_id"`
 	Type             NoteType `json:"type" validate:"required,oneof=file directory"`
 	EncryptedTitle   string   `json:"encrypted_title" validate:"required"`
@@ -59,6 +61,7 @@ type UpdateNoteRequest struct {
 // NoteResponse represents the note data returned to the client
 type NoteResponse struct {
 	ID               string    `json:"id"`
+	WorkspaceID      string    `json:"workspace_id"`
 	ParentID         *string   `json:"parent_id"`
 	Type             NoteType  `json:"type"`
 	EncryptedTitle   string    `json:"encrypted_title"`

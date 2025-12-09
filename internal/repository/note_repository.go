@@ -14,6 +14,7 @@ type NoteRepository interface {
 	Create(note *domain.Note) error
 	FindByID(id string) (*domain.Note, error)
 	List(userID string) ([]*domain.Note, error)
+	ListByWorkspace(workspaceID string) ([]*domain.Note, error)
 	Update(note *domain.Note) error
 	Delete(id string) error // Soft delete usually handled by Update, but explicit method can be useful
 }
@@ -72,6 +73,34 @@ func (r *noteRepository) List(userID string) ([]*domain.Note, error) {
 	rows := db.Find(context.Background(), query)
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to list notes: %w", err)
+	}
+	defer rows.Close()
+
+	var notes []*domain.Note
+	for rows.Next() {
+		var note domain.Note
+		if err := rows.ScanDoc(&note); err != nil {
+			continue
+		}
+		notes = append(notes, &note)
+	}
+
+	return notes, nil
+}
+
+func (r *noteRepository) ListByWorkspace(workspaceID string) ([]*domain.Note, error) {
+	db := r.client.DB(r.dbName)
+
+	query := map[string]interface{}{
+		"selector": map[string]interface{}{
+			"workspace_id":    workspaceID,
+			"encrypted_title": map[string]interface{}{"$exists": true},
+		},
+	}
+
+	rows := db.Find(context.Background(), query)
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to list notes by workspace: %w", err)
 	}
 	defer rows.Close()
 

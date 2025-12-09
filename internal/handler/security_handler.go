@@ -51,9 +51,6 @@ func (h *SecurityHandler) GetKey(w http.ResponseWriter, r *http.Request) {
 
 	key, err := h.service.GetKey(userID)
 	if err != nil {
-		// If key not found, return 404
-		// Kivik might return a specific error, but for now generic 500 or 404 if we checked
-		// Ideally service should return specific error type
 		response.JSON(w, http.StatusNotFound, map[string]string{"error": "Key not found"})
 		return
 	}
