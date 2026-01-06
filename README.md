@@ -2,7 +2,8 @@
 
 Api de autenticação, cadastro e sincronização de notas entre diversos dispositivos, utilizando websocket para
 sincronização em tempo real, CouchDB como banco de dados NoSQL e testes unitarios para garantir a qualidade
-e funcionalidade do codigo
+e funcionalidade do codigo. Contem encriptografia e2e do conteudo e titulo das notas, garantindo privacidade
+e segurança da sincronização.
 
 ## Instalação e Configuração
 
